@@ -1,3 +1,4 @@
+// Package db provides read-only access to the macOS Messages SQLite store.
 package db
 
 import (
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	// modernc sqlite provides a pure-Go sqlite driver for CI/macOS without CGO.
 	_ "modernc.org/sqlite"
 )
 
@@ -64,7 +66,7 @@ func Open(ctx context.Context, path string) (*sql.DB, error) {
 		return nil, enhanceError(err, path)
 	}
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, enhanceError(err, path)
 	}
 	return db, nil
@@ -73,11 +75,11 @@ func Open(ctx context.Context, path string) (*sql.DB, error) {
 // enhanceError adds helpful context for common permission/access errors.
 func enhanceError(err error, path string) error {
 	errStr := err.Error()
-	
+
 	// SQLite error 14 (SQLITE_CANTOPEN) and "authorization denied" both indicate permission issues
-	if strings.Contains(errStr, "out of memory (14)") || 
-	   strings.Contains(errStr, "authorization denied") ||
-	   strings.Contains(errStr, "unable to open database") {
+	if strings.Contains(errStr, "out of memory (14)") ||
+		strings.Contains(errStr, "authorization denied") ||
+		strings.Contains(errStr, "unable to open database") {
 		return fmt.Errorf(`%w
 
 ⚠️  Permission Error: Cannot access Messages database
@@ -93,7 +95,7 @@ To fix:
 Note: This is required because macOS protects the Messages database.
 For more details, see: https://github.com/steipete/imsg#permissions-troubleshooting`, err, path)
 	}
-	
+
 	return err
 }
 
@@ -112,7 +114,7 @@ LIMIT ?`
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	chats := []Chat{}
 	for rows.Next() {
@@ -158,7 +160,7 @@ LIMIT ?`, bodyCol)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	msgs := []Message{}
 	for rows.Next() {
@@ -207,7 +209,7 @@ WHERE maj.message_id = ?`
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var out []AttachmentMeta
 	for rows.Next() {
@@ -247,7 +249,7 @@ WHERE m.ROWID > ?`, bodyCol)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	msgs := []Message{}
 	for rows.Next() {
@@ -287,11 +289,11 @@ WHERE m.ROWID > ?`, bodyCol)
 
 // MaxRowID returns the current highest message rowid.
 func MaxRowID(ctx context.Context, db *sql.DB) (int64, error) {
-	var max sql.NullInt64
-	if err := db.QueryRowContext(ctx, "SELECT MAX(ROWID) FROM message").Scan(&max); err != nil {
+	var maxID sql.NullInt64
+	if err := db.QueryRowContext(ctx, "SELECT MAX(ROWID) FROM message").Scan(&maxID); err != nil {
 		return 0, err
 	}
-	return max.Int64, nil
+	return maxID.Int64, nil
 }
 
 func appleTime(ns int64) time.Time {
@@ -348,7 +350,7 @@ func columnExists(ctx context.Context, db *sql.DB, table, column string) bool {
 	if err != nil {
 		return false
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var (
 			cid     int

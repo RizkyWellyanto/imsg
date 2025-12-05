@@ -1,3 +1,4 @@
+// Package util contains helper utilities such as phone normalization.
 package util
 
 import "github.com/nyaruka/phonenumbers"

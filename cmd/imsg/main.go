@@ -1,3 +1,4 @@
+// Command imsg is a CLI for interacting with macOS Messages.
 package main
 
 import (
@@ -59,12 +60,13 @@ func newChatsCmd() *cobra.Command {
 		Use:   "chats",
 		Short: "List recent conversations",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			_ = args
 			ctx := cmd.Context()
 			store, err := db.Open(ctx, dbPath)
 			if err != nil {
 				return err
 			}
-			defer store.Close()
+			defer func() { _ = store.Close() }()
 
 			chats, err := db.ListChats(ctx, store, limit)
 			if err != nil {
@@ -94,6 +96,7 @@ func newHistoryCmd() *cobra.Command {
 		Use:   "history",
 		Short: "Show recent messages for a chat",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			_ = args
 			if chatID == 0 {
 				return fmt.Errorf("--chat-id is required")
 			}
@@ -102,7 +105,7 @@ func newHistoryCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer store.Close()
+			defer func() { _ = store.Close() }()
 
 			messages, err := db.MessagesByChat(ctx, store, chatID, limit)
 			if err != nil {
@@ -172,6 +175,7 @@ func newWatchCmd() *cobra.Command {
 		Use:   "watch",
 		Short: "Stream incoming messages",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			_ = args
 			ctx, cancel := context.WithCancel(cmd.Context())
 			defer cancel()
 
@@ -179,7 +183,7 @@ func newWatchCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer store.Close()
+			defer func() { _ = store.Close() }()
 
 			sig := make(chan os.Signal, 1)
 			signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
@@ -251,6 +255,7 @@ func newSendCmd() *cobra.Command {
 		Use:   "send",
 		Short: "Send a message (text and/or attachment)",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			_ = args
 			if opts.Recipient == "" {
 				return fmt.Errorf("--to is required")
 			}

@@ -109,7 +109,7 @@ func boolToInt(b bool) int {
 func TestListChats(t *testing.T) {
 	ctx := context.Background()
 	store := newTestDB(t)
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	chats, err := ListChats(ctx, store, 5)
 	if err != nil {
@@ -126,7 +126,7 @@ func TestListChats(t *testing.T) {
 func TestMessagesByChat(t *testing.T) {
 	ctx := context.Background()
 	store := newTestDB(t)
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	msgs, err := MessagesByChat(ctx, store, 1, 10)
 	if err != nil {
@@ -146,7 +146,7 @@ func TestMessagesByChat(t *testing.T) {
 func TestMessagesAfter(t *testing.T) {
 	ctx := context.Background()
 	store := newTestDB(t)
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	msgs, err := MessagesAfter(ctx, store, 1, 0, 10)
 	if err != nil {
@@ -163,7 +163,7 @@ func TestMessagesAfter(t *testing.T) {
 func TestMessagesByChatUsesAttributedBodyFallback(t *testing.T) {
 	ctx := context.Background()
 	store := newTestDBWithBody(t)
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	msgs, err := MessagesByChat(ctx, store, 1, 10)
 	if err != nil {
@@ -180,7 +180,7 @@ func TestMessagesByChatUsesAttributedBodyFallback(t *testing.T) {
 func TestMessagesAfterUsesAttributedBodyFallback(t *testing.T) {
 	ctx := context.Background()
 	store := newTestDBWithBody(t)
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	msgs, err := MessagesAfter(ctx, store, 0, 0, 10)
 	if err != nil {
@@ -205,7 +205,7 @@ func TestParseStreamTypedTrimsControls(t *testing.T) {
 func TestAttachmentsByMessage(t *testing.T) {
 	ctx := context.Background()
 	store := newTestDB(t)
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	metas, err := AttachmentsByMessage(ctx, store, 2)
 	if err != nil {

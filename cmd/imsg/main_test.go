@@ -59,7 +59,7 @@ func buildTempDB(t *testing.T) string {
 			t.Fatalf("insert cmj: %v", err)
 		}
 	}
-	dbConn.Close()
+	_ = dbConn.Close()
 	return dbfile
 }
 

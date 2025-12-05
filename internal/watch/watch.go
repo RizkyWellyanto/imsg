@@ -1,3 +1,4 @@
+// Package watch streams new messages from the Messages database.
 package watch
 
 import (

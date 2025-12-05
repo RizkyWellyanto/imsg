@@ -11,13 +11,13 @@ import (
 
 func TestRunDeliversMessages(t *testing.T) {
 	store := buildDB(t)
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
 
 	var seen int
-	err := Run(ctx, store, 0, 0, 50*time.Millisecond, func(m db.Message) {
+	err := Run(ctx, store, 0, 0, 50*time.Millisecond, func(_ db.Message) {
 		seen++
 	})
 	if err != context.DeadlineExceeded {

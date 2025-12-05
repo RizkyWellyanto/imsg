@@ -1,3 +1,4 @@
+// Package send dispatches outbound Messages via AppleScript.
 package send
 
 import (
@@ -11,10 +12,14 @@ import (
 // Service represents the transport preference.
 type Service string
 
+// Service values control which Messages transport is used.
 const (
-	ServiceAuto     Service = "auto"
+	// ServiceAuto picks iMessage when available, otherwise SMS.
+	ServiceAuto Service = "auto"
+	// ServiceIMessage forces iMessage.
 	ServiceIMessage Service = "imessage"
-	ServiceSMS      Service = "sms"
+	// ServiceSMS forces SMS/Text Relay.
+	ServiceSMS Service = "sms"
 )
 
 // Options controls how a message is sent.
