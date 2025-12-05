@@ -1,0 +1,13 @@
+{
+  "name": "imsg",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "imsg": "go run ./cmd/imsg",
+    "start": "pnpm imsg",
+    "format": "gofmt -w cmd internal",
+    "lint": "golangci-lint run --out-format=colored-line-number",
+    "test": "go test ./...",
+    "build": "mkdir -p bin && go build -o bin/imsg ./cmd/imsg"
+  }
+}
