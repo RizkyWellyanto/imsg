@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/nyaruka/phonenumbers v1.6.7
 	github.com/spf13/cobra v1.10.2
-	modernc.org/sqlite v1.40.1
+	modernc.org/sqlite v1.41.0
 )
 
 require (
@@ -16,11 +16,11 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	golang.org/x/exp v0.0.0-20251125195548-87e1e737ad39 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
-	google.golang.org/protobuf v1.36.10 // indirect
-	modernc.org/libc v1.67.1 // indirect
+	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
+	modernc.org/libc v1.67.2 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
