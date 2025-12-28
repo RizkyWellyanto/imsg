@@ -112,10 +112,12 @@ struct CommandRouter {
       .resolvingSymlinksInPath()
     let bundleURL = executableURL.deletingLastPathComponent()
       .appendingPathComponent("imsg_imsg.bundle")
-    guard let bundle = Bundle(url: bundleURL) else {
-      return nil
-    }
-    guard let url = bundle.url(forResource: "version", withExtension: "txt"),
+    let candidateURLs = [
+      bundleURL.appendingPathComponent("version.txt"),
+      bundleURL.appendingPathComponent("Contents/Resources/version.txt"),
+    ]
+    guard
+      let url = candidateURLs.first(where: { FileManager.default.fileExists(atPath: $0.path) }),
       let value = try? String(contentsOf: url, encoding: .utf8)
     else {
       return nil

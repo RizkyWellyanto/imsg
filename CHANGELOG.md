@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## 0.2.5 - 2025-12-28
+- fix: load version file directly from resource bundle directory
+
 ## 0.2.4 - 2025-12-28
 - fix: avoid Bundle.module lookup so symlinked installs can resolve version bundle
 
