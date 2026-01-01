@@ -3,61 +3,77 @@ import Foundation
 
 struct HelpPrinter {
   static func printRoot(version: String, rootName: String, commands: [CommandSpec]) {
-    Swift.print("\(rootName) \(version)")
-    Swift.print("Send and read iMessage / SMS from the terminal")
-    Swift.print("")
-    Swift.print("Usage:")
-    Swift.print("  \(rootName) <command> [options]")
-    Swift.print("")
-    Swift.print("Commands:")
-    for command in commands {
-      Swift.print("  \(command.name)\t\(command.abstract)")
+    for line in renderRoot(version: version, rootName: rootName, commands: commands) {
+      Swift.print(line)
     }
-    Swift.print("")
-    Swift.print("Run '\(rootName) <command> --help' for details.")
   }
 
   static func printCommand(rootName: String, spec: CommandSpec) {
-    Swift.print("\(rootName) \(spec.name)")
-    Swift.print(spec.abstract)
-    if let discussion = spec.discussion, !discussion.isEmpty {
-      Swift.print("\n\(discussion)")
+    for line in renderCommand(rootName: rootName, spec: spec) {
+      Swift.print(line)
     }
-    Swift.print("")
-    Swift.print("Usage:")
-    Swift.print("  \(rootName) \(spec.name) \(usageFragment(for: spec.signature))")
-    Swift.print("")
+  }
+
+  static func renderRoot(version: String, rootName: String, commands: [CommandSpec]) -> [String] {
+    var lines: [String] = []
+    lines.append("\(rootName) \(version)")
+    lines.append("Send and read iMessage / SMS from the terminal")
+    lines.append("")
+    lines.append("Usage:")
+    lines.append("  \(rootName) <command> [options]")
+    lines.append("")
+    lines.append("Commands:")
+    for command in commands {
+      lines.append("  \(command.name)\t\(command.abstract)")
+    }
+    lines.append("")
+    lines.append("Run '\(rootName) <command> --help' for details.")
+    return lines
+  }
+
+  static func renderCommand(rootName: String, spec: CommandSpec) -> [String] {
+    var lines: [String] = []
+    lines.append("\(rootName) \(spec.name)")
+    lines.append(spec.abstract)
+    if let discussion = spec.discussion, !discussion.isEmpty {
+      lines.append("\n\(discussion)")
+    }
+    lines.append("")
+    lines.append("Usage:")
+    lines.append("  \(rootName) \(spec.name) \(usageFragment(for: spec.signature))")
+    lines.append("")
 
     if !spec.signature.arguments.isEmpty {
-      Swift.print("Arguments:")
+      lines.append("Arguments:")
       for arg in spec.signature.arguments {
         let optionalMark = arg.isOptional ? "?" : ""
-        Swift.print("  \(arg.label)\(optionalMark)\t\(arg.help ?? "")")
+        lines.append("  \(arg.label)\(optionalMark)\t\(arg.help ?? "")")
       }
-      Swift.print("")
+      lines.append("")
     }
 
     let options = spec.signature.options
     let flags = spec.signature.flags
     if !options.isEmpty || !flags.isEmpty {
-      Swift.print("Options:")
+      lines.append("Options:")
       for option in options {
         let names = formatNames(option.names, expectsValue: true)
-        Swift.print("  \(names)\t\(option.help ?? "")")
+        lines.append("  \(names)\t\(option.help ?? "")")
       }
       for flag in flags {
         let names = formatNames(flag.names, expectsValue: false)
-        Swift.print("  \(names)\t\(flag.help ?? "")")
+        lines.append("  \(names)\t\(flag.help ?? "")")
       }
-      Swift.print("")
+      lines.append("")
     }
 
     if !spec.usageExamples.isEmpty {
-      Swift.print("Examples:")
+      lines.append("Examples:")
       for example in spec.usageExamples {
-        Swift.print("  \(example)")
+        lines.append("  \(example)")
       }
     }
+    return lines
   }
 
   private static func usageFragment(for signature: CommandSignature) -> String {

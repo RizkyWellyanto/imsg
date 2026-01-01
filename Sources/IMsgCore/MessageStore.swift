@@ -84,6 +84,55 @@ public final class MessageStore: @unchecked Sendable {
     }
   }
 
+  public func chatInfo(chatID: Int64) throws -> ChatInfo? {
+    let sql = """
+      SELECT c.ROWID, IFNULL(c.chat_identifier, '') AS identifier, IFNULL(c.guid, '') AS guid,
+             IFNULL(c.display_name, c.chat_identifier) AS name, IFNULL(c.service_name, '') AS service
+      FROM chat c
+      WHERE c.ROWID = ?
+      LIMIT 1
+      """
+    return try withConnection { db in
+      for row in try db.prepare(sql, chatID) {
+        let id = int64Value(row[0]) ?? 0
+        let identifier = stringValue(row[1])
+        let guid = stringValue(row[2])
+        let name = stringValue(row[3])
+        let service = stringValue(row[4])
+        return ChatInfo(
+          id: id,
+          identifier: identifier,
+          guid: guid,
+          name: name,
+          service: service
+        )
+      }
+      return nil
+    }
+  }
+
+  public func participants(chatID: Int64) throws -> [String] {
+    let sql = """
+      SELECT h.id
+      FROM chat_handle_join chj
+      JOIN handle h ON h.ROWID = chj.handle_id
+      WHERE chj.chat_id = ?
+      ORDER BY h.id ASC
+      """
+    return try withConnection { db in
+      var results: [String] = []
+      var seen = Set<String>()
+      for row in try db.prepare(sql, chatID) {
+        let handle = stringValue(row[0])
+        if handle.isEmpty { continue }
+        if seen.insert(handle).inserted {
+          results.append(handle)
+        }
+      }
+      return results
+    }
+  }
+
   public func messages(chatID: Int64, limit: Int) throws -> [Message] {
     let bodyColumn = hasAttributedBody ? "m.attributedBody" : "NULL"
     let sql = """
@@ -224,69 +273,6 @@ public final class MessageStore: @unchecked Sendable {
     return try queue.sync {
       try block(connection)
     }
-  }
-
-  private static func detectAttributedBody(connection: Connection) -> Bool {
-    do {
-      let rows = try connection.prepare("PRAGMA table_info(message)")
-      for row in rows {
-        if let name = row[1] as? String,
-          name.caseInsensitiveCompare("attributedBody") == .orderedSame
-        {
-          return true
-        }
-      }
-    } catch {
-      return false
-    }
-    return false
-  }
-
-  private static func enhance(error: Error, path: String) -> Error {
-    let message = String(describing: error).lowercased()
-    if message.contains("out of memory (14)") || message.contains("authorization denied")
-      || message.contains("unable to open database") || message.contains("cannot open")
-    {
-      return IMsgError.permissionDenied(path: path, underlying: error)
-    }
-    return error
-  }
-
-  private func appleDate(from value: Int64?) -> Date {
-    guard let value else { return Date(timeIntervalSince1970: MessageStore.appleEpochOffset) }
-    return Date(
-      timeIntervalSince1970: (Double(value) / 1_000_000_000) + MessageStore.appleEpochOffset)
-  }
-
-  private func stringValue(_ binding: Binding?) -> String {
-    return binding as? String ?? ""
-  }
-
-  private func int64Value(_ binding: Binding?) -> Int64? {
-    if let value = binding as? Int64 { return value }
-    if let value = binding as? Int { return Int64(value) }
-    if let value = binding as? Double { return Int64(value) }
-    return nil
-  }
-
-  private func intValue(_ binding: Binding?) -> Int? {
-    if let value = binding as? Int { return value }
-    if let value = binding as? Int64 { return Int(value) }
-    if let value = binding as? Double { return Int(value) }
-    return nil
-  }
-
-  private func boolValue(_ binding: Binding?) -> Bool {
-    if let value = binding as? Bool { return value }
-    if let value = intValue(binding) { return value != 0 }
-    return false
-  }
-
-  private func dataValue(_ binding: Binding?) -> Data {
-    if let blob = binding as? Blob {
-      return Data(blob.bytes)
-    }
-    return Data()
   }
 }
 

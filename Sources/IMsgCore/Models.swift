@@ -126,6 +126,22 @@ public struct Chat: Sendable, Equatable {
   }
 }
 
+public struct ChatInfo: Sendable, Equatable {
+  public let id: Int64
+  public let identifier: String
+  public let guid: String
+  public let name: String
+  public let service: String
+
+  public init(id: Int64, identifier: String, guid: String, name: String, service: String) {
+    self.id = id
+    self.identifier = identifier
+    self.guid = guid
+    self.name = name
+    self.service = service
+  }
+}
+
 public struct Message: Sendable, Equatable {
   public let rowID: Int64
   public let chatID: Int64

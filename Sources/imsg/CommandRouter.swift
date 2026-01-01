@@ -14,6 +14,7 @@ struct CommandRouter {
       HistoryCommand.spec,
       WatchCommand.spec,
       SendCommand.spec,
+      RpcCommand.spec,
     ]
     let descriptor = CommandDescriptor(
       name: rootName,
@@ -26,7 +27,11 @@ struct CommandRouter {
   }
 
   func run() async -> Int32 {
-    let argv = normalizeArguments(CommandLine.arguments)
+    return await run(argv: CommandLine.arguments)
+  }
+
+  func run(argv: [String]) async -> Int32 {
+    let argv = normalizeArguments(argv)
     if argv.contains("--version") || argv.contains("-V") {
       Swift.print(version)
       return 0

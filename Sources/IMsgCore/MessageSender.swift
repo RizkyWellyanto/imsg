@@ -14,32 +14,53 @@ public struct MessageSendOptions: Sendable {
   public var attachmentPath: String
   public var service: MessageService
   public var region: String
+  public var chatIdentifier: String
+  public var chatGUID: String
 
   public init(
     recipient: String,
     text: String = "",
     attachmentPath: String = "",
     service: MessageService = .auto,
-    region: String = "US"
+    region: String = "US",
+    chatIdentifier: String = "",
+    chatGUID: String = ""
   ) {
     self.recipient = recipient
     self.text = text
     self.attachmentPath = attachmentPath
     self.service = service
     self.region = region
+    self.chatIdentifier = chatIdentifier
+    self.chatGUID = chatGUID
   }
 }
 
 public struct MessageSender {
-  private let normalizer = PhoneNumberNormalizer()
+  private let normalizer: PhoneNumberNormalizer
+  private let runner: (String, [String]) throws -> Void
 
-  public init() {}
+  public init() {
+    self.normalizer = PhoneNumberNormalizer()
+    self.runner = MessageSender.runAppleScript
+  }
+
+  init(runner: @escaping (String, [String]) throws -> Void) {
+    self.normalizer = PhoneNumberNormalizer()
+    self.runner = runner
+  }
 
   public func send(_ options: MessageSendOptions) throws {
     var resolved = options
-    if resolved.region.isEmpty { resolved.region = "US" }
-    resolved.recipient = normalizer.normalize(resolved.recipient, region: resolved.region)
-    if resolved.service == .auto { resolved.service = .imessage }
+    let chatTarget = resolved.chatIdentifier.isEmpty ? resolved.chatGUID : resolved.chatIdentifier
+    let useChat = !chatTarget.isEmpty
+    if useChat == false {
+      if resolved.region.isEmpty { resolved.region = "US" }
+      resolved.recipient = normalizer.normalize(resolved.recipient, region: resolved.region)
+      if resolved.service == .auto { resolved.service = .imessage }
+    } else if chatTarget.isEmpty {
+      throw IMsgError.invalidChatTarget("Missing chat identifier or guid")
+    }
 
     let script = appleScript()
     let arguments = [
@@ -48,9 +69,11 @@ public struct MessageSender {
       resolved.service.rawValue,
       resolved.attachmentPath,
       resolved.attachmentPath.isEmpty ? "0" : "1",
+      chatTarget,
+      useChat ? "1" : "0",
     ]
 
-    try runAppleScript(source: script, arguments: arguments)
+    try runner(script, arguments)
   }
 
   private func appleScript() -> String {
@@ -61,28 +84,41 @@ public struct MessageSender {
           set theService to item 3 of argv
           set theFilePath to item 4 of argv
           set useAttachment to item 5 of argv
+          set chatId to item 6 of argv
+          set useChat to item 7 of argv
 
           tell application "Messages"
-              if theService is "sms" then
-                  set targetService to first service whose service type is SMS
+              if useChat is "1" then
+                  set targetChat to chat id chatId
+                  if theMessage is not "" then
+                      send theMessage to targetChat
+                  end if
+                  if useAttachment is "1" then
+                      set theFile to POSIX file theFilePath as alias
+                      send theFile to targetChat
+                  end if
               else
-                  set targetService to first service whose service type is iMessage
-              end if
+                  if theService is "sms" then
+                      set targetService to first service whose service type is SMS
+                  else
+                      set targetService to first service whose service type is iMessage
+                  end if
 
-              set targetBuddy to buddy theRecipient of targetService
-              if theMessage is not "" then
-                  send theMessage to targetBuddy
-              end if
-              if useAttachment is "1" then
-                  set theFile to POSIX file theFilePath as alias
-                  send theFile to targetBuddy
+                  set targetBuddy to buddy theRecipient of targetService
+                  if theMessage is not "" then
+                      send theMessage to targetBuddy
+                  end if
+                  if useAttachment is "1" then
+                      set theFile to POSIX file theFilePath as alias
+                      send theFile to targetBuddy
+                  end if
               end if
           end tell
       end run
       """
   }
 
-  private func runAppleScript(source: String, arguments: [String]) throws {
+  private static func runAppleScript(source: String, arguments: [String]) throws {
     guard let script = NSAppleScript(source: source) else {
       throw IMsgError.appleScriptFailure("Unable to compile AppleScript")
     }
@@ -113,7 +149,7 @@ public struct MessageSender {
     }
   }
 
-  private func shouldFallbackToOsascript(errorInfo: NSDictionary) -> Bool {
+  private static func shouldFallbackToOsascript(errorInfo: NSDictionary) -> Bool {
     if let errorNumber = errorInfo[NSAppleScript.errorNumber] as? Int, errorNumber == -1743 {
       return true
     }
@@ -127,7 +163,7 @@ public struct MessageSender {
     return false
   }
 
-  private func runOsascript(source: String, arguments: [String]) throws {
+  private static func runOsascript(source: String, arguments: [String]) throws {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
     process.arguments = ["-l", "AppleScript", "-"] + arguments

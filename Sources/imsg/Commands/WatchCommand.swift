@@ -35,6 +35,23 @@ enum WatchCommand {
       "imsg watch --chat-id 1 --participants +15551234567",
     ]
   ) { values, runtime in
+    try await run(values: values, runtime: runtime)
+  }
+
+  static func run(
+    values: ParsedValues,
+    runtime: RuntimeOptions,
+    storeFactory: @escaping (String) throws -> MessageStore = { try MessageStore(path: $0) },
+    streamProvider:
+      @escaping (
+        MessageWatcher,
+        Int64?,
+        Int64?,
+        MessageWatcherConfiguration
+      ) -> AsyncThrowingStream<Message, Error> = { watcher, chatID, sinceRowID, config in
+        watcher.stream(chatID: chatID, sinceRowID: sinceRowID, configuration: config)
+      }
+  ) async throws {
     let dbPath = values.option("db") ?? MessageStore.defaultPath
     let chatID = values.optionInt64("chatID")
     let debounceString = values.option("debounce") ?? "250ms"
@@ -52,16 +69,15 @@ enum WatchCommand {
       endISO: values.option("end")
     )
 
-    let store = try MessageStore(path: dbPath)
+    let store = try storeFactory(dbPath)
     let watcher = MessageWatcher(store: store)
     let config = MessageWatcherConfiguration(
       debounceInterval: debounceInterval,
       batchLimit: 100
     )
 
-    for try await message in watcher.stream(
-      chatID: chatID, sinceRowID: sinceRowID, configuration: config)
-    {
+    let stream = streamProvider(watcher, chatID, sinceRowID, config)
+    for try await message in stream {
       if !filter.allows(message) {
         continue
       }

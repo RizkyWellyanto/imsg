@@ -7,9 +7,14 @@ enum JSONLines {
     return encoder
   }()
 
-  static func print<T: Encodable>(_ value: T) throws {
+  static func encode<T: Encodable>(_ value: T) throws -> String {
     let data = try encoder.encode(value)
-    if let line = String(data: data, encoding: .utf8) {
+    return String(data: data, encoding: .utf8) ?? ""
+  }
+
+  static func print<T: Encodable>(_ value: T) throws {
+    let line = try encode(value)
+    if !line.isEmpty {
       Swift.print(line)
     }
   }
