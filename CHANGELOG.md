@@ -4,7 +4,6 @@
 - feat: include `guid` and `reply_to_guid` metadata in JSON output
 - fix: hide reaction rows from history/watch output and improve reaction matching
 - fix: fill missing sender handles from `destination_caller_id` for outgoing/group messages
-- chore: remove private API send mode from main
 - test: add coverage for sender fallback
 
 ## 0.3.0 - 2026-01-02
