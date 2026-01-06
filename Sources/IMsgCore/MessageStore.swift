@@ -17,6 +17,8 @@ public final class MessageStore: @unchecked Sendable {
   private let hasAttributedBody: Bool
   private let hasReactionColumns: Bool
   private let hasDestinationCallerID: Bool
+  private let hasAudioMessageColumn: Bool
+  private let hasAttachmentUserInfo: Bool
 
   public init(path: String = MessageStore.defaultPath) throws {
     let normalized = NSString(string: path).expandingTildeInPath
@@ -33,6 +35,12 @@ public final class MessageStore: @unchecked Sendable {
       self.hasDestinationCallerID = MessageStore.detectDestinationCallerID(
         connection: self.connection
       )
+      self.hasAudioMessageColumn = MessageStore.detectAudioMessageColumn(
+        connection: self.connection
+      )
+      self.hasAttachmentUserInfo = MessageStore.detectAttachmentUserInfo(
+        connection: self.connection
+      )
     } catch {
       throw MessageStore.enhance(error: error, path: normalized)
     }
@@ -43,7 +51,9 @@ public final class MessageStore: @unchecked Sendable {
     path: String,
     hasAttributedBody: Bool? = nil,
     hasReactionColumns: Bool? = nil,
-    hasDestinationCallerID: Bool? = nil
+    hasDestinationCallerID: Bool? = nil,
+    hasAudioMessageColumn: Bool? = nil,
+    hasAttachmentUserInfo: Bool? = nil
   ) throws {
     self.path = path
     self.queue = DispatchQueue(label: "imsg.db.test", qos: .userInitiated)
@@ -64,6 +74,16 @@ public final class MessageStore: @unchecked Sendable {
       self.hasDestinationCallerID = hasDestinationCallerID
     } else {
       self.hasDestinationCallerID = MessageStore.detectDestinationCallerID(connection: connection)
+    }
+    if let hasAudioMessageColumn {
+      self.hasAudioMessageColumn = hasAudioMessageColumn
+    } else {
+      self.hasAudioMessageColumn = MessageStore.detectAudioMessageColumn(connection: connection)
+    }
+    if let hasAttachmentUserInfo {
+      self.hasAttachmentUserInfo = hasAttachmentUserInfo
+    } else {
+      self.hasAttachmentUserInfo = MessageStore.detectAttachmentUserInfo(connection: connection)
     }
   }
 
@@ -149,13 +169,14 @@ public final class MessageStore: @unchecked Sendable {
     let associatedGuidColumn = hasReactionColumns ? "m.associated_message_guid" : "NULL"
     let associatedTypeColumn = hasReactionColumns ? "m.associated_message_type" : "NULL"
     let destinationCallerColumn = hasDestinationCallerID ? "m.destination_caller_id" : "NULL"
+    let audioMessageColumn = hasAudioMessageColumn ? "m.is_audio_message" : "0"
     let reactionFilter =
       hasReactionColumns
       ? " AND (m.associated_message_type IS NULL OR m.associated_message_type < 2000 OR m.associated_message_type > 3006)"
       : ""
     let sql = """
       SELECT m.ROWID, m.handle_id, h.id, IFNULL(m.text, '') AS text, m.date, m.is_from_me, m.service,
-             \(destinationCallerColumn) AS destination_caller_id,
+             \(audioMessageColumn) AS is_audio_message, \(destinationCallerColumn) AS destination_caller_id,
              \(guidColumn) AS guid, \(associatedGuidColumn) AS associated_guid, \(associatedTypeColumn) AS associated_type,
              (SELECT COUNT(*) FROM message_attachment_join maj WHERE maj.message_id = m.ROWID) AS attachments,
              \(bodyColumn) AS body
@@ -176,16 +197,20 @@ public final class MessageStore: @unchecked Sendable {
         let date = appleDate(from: int64Value(row[4]))
         let isFromMe = boolValue(row[5])
         let service = stringValue(row[6])
-        let destinationCallerID = stringValue(row[7])
+        let isAudioMessage = boolValue(row[7])
+        let destinationCallerID = stringValue(row[8])
         if sender.isEmpty && !destinationCallerID.isEmpty {
           sender = destinationCallerID
         }
-        let guid = stringValue(row[8])
-        let associatedGuid = stringValue(row[9])
-        let associatedType = intValue(row[10])
-        let attachments = intValue(row[11]) ?? 0
-        let body = dataValue(row[12])
-        let resolvedText = text.isEmpty ? TypedStreamParser.parseAttributedBody(body) : text
+        let guid = stringValue(row[9])
+        let associatedGuid = stringValue(row[10])
+        let associatedType = intValue(row[11])
+        let attachments = intValue(row[12]) ?? 0
+        let body = dataValue(row[13])
+        var resolvedText = text.isEmpty ? TypedStreamParser.parseAttributedBody(body) : text
+        if isAudioMessage, let transcription = try audioTranscription(for: rowID) {
+          resolvedText = transcription
+        }
         let replyToGUID = replyToGUID(
           associatedGuid: associatedGuid,
           associatedType: associatedType
@@ -215,13 +240,14 @@ public final class MessageStore: @unchecked Sendable {
     let associatedGuidColumn = hasReactionColumns ? "m.associated_message_guid" : "NULL"
     let associatedTypeColumn = hasReactionColumns ? "m.associated_message_type" : "NULL"
     let destinationCallerColumn = hasDestinationCallerID ? "m.destination_caller_id" : "NULL"
+    let audioMessageColumn = hasAudioMessageColumn ? "m.is_audio_message" : "0"
     let reactionFilter =
       hasReactionColumns
       ? " AND (m.associated_message_type IS NULL OR m.associated_message_type < 2000 OR m.associated_message_type > 3006)"
       : ""
     var sql = """
       SELECT m.ROWID, cmj.chat_id, m.handle_id, h.id, IFNULL(m.text, '') AS text, m.date, m.is_from_me, m.service,
-             \(destinationCallerColumn) AS destination_caller_id,
+             \(audioMessageColumn) AS is_audio_message, \(destinationCallerColumn) AS destination_caller_id,
              \(guidColumn) AS guid, \(associatedGuidColumn) AS associated_guid, \(associatedTypeColumn) AS associated_type,
              (SELECT COUNT(*) FROM message_attachment_join maj WHERE maj.message_id = m.ROWID) AS attachments,
              \(bodyColumn) AS body
@@ -249,16 +275,20 @@ public final class MessageStore: @unchecked Sendable {
         let date = appleDate(from: int64Value(row[5]))
         let isFromMe = boolValue(row[6])
         let service = stringValue(row[7])
-        let destinationCallerID = stringValue(row[8])
+        let isAudioMessage = boolValue(row[8])
+        let destinationCallerID = stringValue(row[9])
         if sender.isEmpty && !destinationCallerID.isEmpty {
           sender = destinationCallerID
         }
-        let guid = stringValue(row[9])
-        let associatedGuid = stringValue(row[10])
-        let associatedType = intValue(row[11])
-        let attachments = intValue(row[12]) ?? 0
-        let body = dataValue(row[13])
-        let resolvedText = text.isEmpty ? TypedStreamParser.parseAttributedBody(body) : text
+        let guid = stringValue(row[10])
+        let associatedGuid = stringValue(row[11])
+        let associatedType = intValue(row[12])
+        let attachments = intValue(row[13]) ?? 0
+        let body = dataValue(row[14])
+        var resolvedText = text.isEmpty ? TypedStreamParser.parseAttributedBody(body) : text
+        if isAudioMessage, let transcription = try audioTranscription(for: rowID) {
+          resolvedText = transcription
+        }
         let replyToGUID = replyToGUID(
           associatedGuid: associatedGuid,
           associatedType: associatedType
@@ -323,6 +353,47 @@ extension MessageStore {
           ))
       }
       return metas
+    }
+  }
+
+  private func audioTranscription(for messageID: Int64) throws -> String? {
+    guard hasAttachmentUserInfo else { return nil }
+    let sql = """
+      SELECT a.user_info
+      FROM message_attachment_join maj
+      JOIN attachment a ON a.ROWID = maj.attachment_id
+      WHERE maj.message_id = ?
+      LIMIT 1
+      """
+    return try withConnection { db in
+      for row in try db.prepare(sql, messageID) {
+        let info = dataValue(row[0])
+        guard !info.isEmpty else { continue }
+        if let transcription = parseAudioTranscription(from: info) {
+          return transcription
+        }
+      }
+      return nil
+    }
+  }
+
+  private func parseAudioTranscription(from data: Data) -> String? {
+    do {
+      let plist = try PropertyListSerialization.propertyList(
+        from: data,
+        options: [],
+        format: nil
+      )
+      guard
+        let dict = plist as? [String: Any],
+        let transcription = dict["audio-transcription"] as? String,
+        !transcription.isEmpty
+      else {
+        return nil
+      }
+      return transcription
+    } catch {
+      return nil
     }
   }
 
