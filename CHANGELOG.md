@@ -1,9 +1,11 @@
 # Changelog
 
-## Unreleased (0.4.0)
+## Unreleased
+
+## 0.4.0 - 2026-01-07
 - feat: surface audio message transcriptions (thanks @antons)
 - fix: stage message attachments in Messages attachments directory (thanks @antons)
-- fix: prefer chat guid for chat_id sends to avoid 1:1 AppleScript errors (thanks @mshuffett)
+- fix: prefer chat GUID for `chat_id` sends to avoid 1:1 AppleScript errors (thanks @mshuffett)
 - fix: detect python3 in patch-deps script (thanks @visionik)
 - build: add universal binary build helper
 - ci: switch to make-based lint/test/build
