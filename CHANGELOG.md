@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.5.0 - Unreleased
+## Unreleased
+
+## 0.5.0 - 2026-02-16
 
 - feat: add typing indicator command + RPC methods with stricter validation (#41, thanks @kohoj)
 - feat: `--reactions` flag for `watch` command to include tapback events in stream (#26)
@@ -17,7 +19,7 @@
 - refactor: consolidate schema detection, stdout writing, and message/RPC payload mapping paths
 - test: split command test suites by domain and align group-handle expectations
 - docs: update changelog entries as typing/reaction work landed
-- chore: bump unreleased version marker to `0.5.0`
+- chore: bump version marker to `0.5.0`
 
 ## 0.4.0 - 2026-01-07
 - feat: surface audio message transcriptions (thanks @antons)
